@@ -116,6 +116,9 @@ aggTS = function(
     # timeseries_data = data_new
     # newPeriod = "hourly"
     # fun = "sum"
+    # timeseries_data = data_new
+    # newPeriod = "min"
+    # fun = "mean"
     # time_offset = 0
     # conserve_columns = "cell_index"
     # conserve_columns = c("x", "y")
@@ -136,6 +139,11 @@ aggTS = function(
         ts_newPeriod = timeseries_data %>%
         dplyr::mutate(datetime = as.POSIXct(trunc(datetime, "days"))) %>%
         dplyr::mutate(datetime = datetime + 3600 * 24 * time_offset)
+           },
+           min = {
+        ts_newPeriod = timeseries_data %>%
+        dplyr::mutate(datetime = as.POSIXct(trunc(datetime, "min"))) %>%
+        dplyr::mutate(datetime = datetime + 60 * time_offset)
            },
            hourly = {
         ts_newPeriod = timeseries_data %>%
@@ -205,14 +213,17 @@ interpTS = function(
 ){
     ## debugging
     # data_in = influx_latest
+    # freq_in = "hourly"
     # freq_in = "min"
-    # freq_out = "hourly"
+    # freq_out = "min"
     # aggFunc = "mean"
     # data_col_name = "value"
     ####################
     # get start and end time stamps
     ts_start = min(data_in$datetime)
     ts_end = max(data_in$datetime)
+    # catch bug and maintain old code in catching this:
+    # if(freq_in == "hourly") freq_in = "hour"
     # construct time series dates: hourly
     datetime_new = data.frame(datetime = seq(ts_start, ts_end, by=freq_in))
     # select data column
