@@ -14,9 +14,11 @@
 CG6_driftCorrection = function(
       data_in_raw,
       base_station,
-      use_gPhone = F,
+      gravRef = NA,
       cut_sd = NA,
-      cut_tilt = NA
+      cut_tilt = NA,
+      org_units = "mGal",
+      readd_longTdrift = FALSE
 ){
     ## debugging
     # data_in_raw = as.data.frame(cg6_data)
@@ -28,24 +30,60 @@ CG6_driftCorrection = function(
     # use_gPhone = F
     # dev_id = "58"
     # # i=2
+    # data_in_raw = data_survey_cleaned
+    # base_station = "PILLARFG5"
+    # cut_sd = NA
+    # cut_tilt = NA
+    # gravRef = "TERENO"
+    # dev_id = "58"
+    # org_units = "mGal"
+    # readd_longTdrift = T
+    ##########
+    ## gravRef
+    # files or connections if a reference gravimmeter should be used, additionally
+    if(gravRef == "TERENO"){
+      file_gravityResidual = "/home/mreich/server/hygra/DataTERENO/Gravity/ProcData/GFZ/localResData/gravity_residual_until2019-09-30.rData"
+    }
+    if(gravRef == "BOERNCHEN"){
+      file_gravityResidual = "/home/mreich/Dokumente/MOSES/Data/gPhone/gPhone_Boernchen_processed/gravity_residual_until2019-10-01.rData"
+    }
+    if(gravRef == "AQG"){
+      file_gravityResidual = ""
+    }
+    ##########
     ##########
     ## calculate station mean values
     # first the tide signal is added back to g signal
     if(is.na(cut_sd)){
     data_means = CG6_station_mean(
                           data_in = data_in_raw,
-                          add_tides = T
+                          add_tides = T,
+                          add_longTdrift = readd_longTdrift
     )
     # for further processing, the tide information is obsolete
     data_in_raw = data_in_raw %>%
+        reshape2::dcast(Station + datetime + survey + device_id + data_level + site + device + device_type ~ variable, value.var = "value") %>%
+        # re-add long term drift
+        dplyr::mutate(CorrGrav = CorrGrav - DriftCorr) %>%
+        reshape2::melt(id.vars = c("Station", "datetime", "survey", "device_id", "data_level", "site", "device", "device_type")) %>%
+        dplyr::arrange(datetime) %>%
         dplyr::filter(variable != "TideCorr") %>%
+        dplyr::filter(variable != "DriftCorr") %>%
         dplyr::filter(variable != "StdDev") %>%
         dplyr::filter(variable != "X") %>%
-        dplyr::filter(variable != "Y")
+        dplyr::filter(variable != "Y") %>%
+        dplyr::select(Station, datetime, survey, variable, value, device_id, data_level, site, device, device_type)
+    # data_in_raw = data_in_raw %>%
+    #     dplyr::filter(variable != "TideCorr") %>%
+    #     dplyr::filter(variable != "DriftCorr") %>%
+    #     dplyr::filter(variable != "StdDev") %>%
+    #     dplyr::filter(variable != "X") %>%
+    #     dplyr::filter(variable != "Y")
     }else{
     data_means = CG6_station_mean(
                           data_in = data_in_raw,
                           add_tides = T,
+                          add_longTdrift = readd_longTdrift,
                           cutoff_sd = cut_sd,
                           cutoff_tilt = cut_tilt
     )
@@ -55,9 +93,15 @@ CG6_driftCorrection = function(
         dplyr::filter(StdDev <= cut_sd) %>%
         dplyr::filter(abs(X) <= cut_tilt) %>%
         dplyr::filter(abs(Y) <= cut_tilt) %>%
-        dplyr::select(-TideCorr, -StdDev, -X, -Y) %>%
+        # re-add long term drift
+        dplyr::mutate(CorrGrav = CorrGrav - DriftCorr) %>%
         reshape2::melt(id.vars = c("Station", "datetime", "survey", "device_id", "data_level", "site", "device", "device_type")) %>%
         dplyr::arrange(datetime) %>%
+        dplyr::filter(variable != "TideCorr") %>%
+        dplyr::filter(variable != "DriftCorr") %>%
+        dplyr::filter(variable != "StdDev") %>%
+        dplyr::filter(variable != "X") %>%
+        dplyr::filter(variable != "Y") %>%
         dplyr::select(Station, datetime, survey, variable, value, device_id, data_level, site, device, device_type)
     }
     
@@ -86,11 +130,37 @@ CG6_driftCorrection = function(
         data_basestation$gravitydif[i] = data_basestation$value[i] - data_basestation$value[i-1]
     }
     
-    if(use_gPhone){
-        ## !!
-        ## add gravity from reference gravimeter
-        # iGrav, gPhone, AQG
-        ## !!
+    if(!is.na(gravRef)){
+      # load residual data
+      gravRes = load(file_gravityResidual)
+      gravRes = get(gravRes)
+      # interpolate hourly time series (residual) to minutely
+      gravRes_minutes = interpTS(gravRes, freq_in = "min", freq_out = NA, aggFunc = "mean", data_col_name = "value")
+      # change column name, for correct data joinging
+      colnames(gravRes_minutes)[2] = "valueGref"
+      # !!
+      # convert units !!
+      # loaded residuals are usually in nm/s²
+      if(org_units == "mGal"){
+          gravRes_minutes$valueGref = gravRes_minutes$valueGref / 1e4
+        }
+      if(org_units == "µGal"){
+          gravRes_minutes$valueGref = gravRes_minutes$valueGref / 1e1
+        }
+      if(org_units == "nms-2"){
+          # nothing, residuals are usually in nm/s²
+        }
+      # find data for drift estimation time points
+      gravRes_driftPoints = data_basestation %>%
+          dplyr::left_join(gravRes_minutes, by = "datetime")
+      # calculate difference in gravity of reference gravimeter
+      gravRes_driftPoints$gravitydif_gRef = 0
+      for(i in 2:dim(gravRes_driftPoints)[1]){
+          gravRes_driftPoints$gravitydif_gRef[i] = gravRes_driftPoints$valueGref[i] - gravRes_driftPoints$valueGref[i-1]
+      }
+      data_basestation = gravRes_driftPoints %>%
+          dplyr::mutate(gravitydif = gravitydif + gravitydif_gRef) %>%
+          dplyr::select(-gravitydif_gRef, -valueGref)
     }
     
     ## calulate driftrate
@@ -147,6 +217,7 @@ CG6_driftCorrection = function(
     data_drift_corrected_mean = CG6_station_mean(
                           data_in = data_drift_corrected,
                           add_tides = F,
+                          add_longTdrift = F,
                           cutoff_sd = NA,
                           cutoff_tilt = NA
     )
