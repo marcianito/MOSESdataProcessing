@@ -3,6 +3,7 @@
 #' @description test
 #'
 #' @param test test
+#' @param gravRef Station of referene gravity values. Options are: "TERENO", "BOECHNCHEN", "AQG". Values of reference gravity have to be in nm/s².
 #' 
 #' @return test
 #' 
@@ -54,11 +55,11 @@ CG6_driftCorrection = function(
     ##########
     ## calculate station mean values
     # first the tide signal is added back to g signal
-    if(is.na(cut_sd)){
-    data_means = CG6_station_mean(
-                          data_in = data_in_raw,
-                          add_tides = T,
-                          add_longTdrift = readd_longTdrift
+if(is.na(cut_sd)){
+  data_means = CG6_station_mean(
+                        data_in = data_in_raw,
+                        add_tides = T,
+                        add_longTdrift = readd_longTdrift
     )
     # for further processing, the tide information is obsolete
     data_in_raw = data_in_raw %>%

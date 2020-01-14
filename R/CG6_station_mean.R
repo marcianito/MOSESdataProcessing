@@ -31,96 +31,58 @@ CG6_station_mean = function(
     # readd tides, if desired
     if(is.na(cutoff_sd)){
         if(add_tides == T & add_longTdrift == F){
-        cg6_addTide = data_in %>%
+        data_in_mod = data_in %>%
             reshape2::dcast(Station + datetime + survey + device_id + data_level + site + device + device_type ~ variable, value.var = "value") %>%
-            dplyr::mutate(CorrGrav = CorrGrav - TideCorr) %>%
-            # dplyr::select(-TideCorr) %>%
-            reshape2::melt(id.vars = c("Station", "datetime", "survey", "device_id", "data_level", "site", "device", "device_type")) %>%
-            dplyr::arrange(device_id, datetime, survey, Station) %>%
-            dplyr::filter(variable != "TideCorr") %>%
-            dplyr::filter(variable != "DriftCorr") %>%
-            dplyr::filter(variable != "StdDev") %>%
-            dplyr::filter(variable != "X") %>%
-            dplyr::filter(variable != "Y") %>%
-            dplyr::select(Station, datetime, survey, variable, value, device_id, data_level, site, device, device_type)
-          data_in = cg6_addTide
+            dplyr::mutate(CorrGrav = CorrGrav - TideCorr)
         }
         if(add_tides == T & add_longTdrift == T){
-        cg6_addTide = data_in %>%
+        data_in_mod = data_in %>%
             reshape2::dcast(Station + datetime + survey + device_id + data_level + site + device + device_type ~ variable, value.var = "value") %>%
-            dplyr::mutate(CorrGrav = CorrGrav - TideCorr - DriftCorr) %>%
-            # dplyr::select(-TideCorr) %>%
-            reshape2::melt(id.vars = c("Station", "datetime", "survey", "device_id", "data_level", "site", "device", "device_type")) %>%
-            dplyr::arrange(device_id, datetime, survey, Station) %>%
-            dplyr::filter(variable != "TideCorr") %>%
-            dplyr::filter(variable != "DriftCorr") %>%
-            dplyr::filter(variable != "StdDev") %>%
-            dplyr::filter(variable != "X") %>%
-            dplyr::filter(variable != "Y") %>%
-            dplyr::select(Station, datetime, survey, variable, value, device_id, data_level, site, device, device_type)
-          data_in = cg6_addTide
+            dplyr::mutate(CorrGrav = CorrGrav - TideCorr - DriftCorr) 
         }
         if(add_tides == F & add_longTdrift == F){
-          data_in = data_in %>%
-            dplyr::arrange(device_id, datetime, survey, Station) %>%
-            dplyr::filter(variable != "TideCorr") %>%
-            dplyr::filter(variable != "DriftCorr") %>%
-            dplyr::filter(variable != "StdDev") %>%
-            dplyr::filter(variable != "X") %>%
-            dplyr::filter(variable != "Y")
+        data_in_mod = data_in %>%
+            reshape2::dcast(Station + datetime + survey + device_id + data_level + site + device + device_type ~ variable, value.var = "value") 
         }
     }else{
         if(add_tides == T & add_longTdrift == F){
-        cg6_addTide = data_in %>%
+        data_in_mod = data_in %>%
             reshape2::dcast(Station + datetime + survey + device_id + data_level + site + device + device_type ~ variable, value.var = "value") %>%
             dplyr::mutate(CorrGrav = CorrGrav - TideCorr) %>%
             dplyr::filter(StdDev <= cutoff_sd) %>%
             dplyr::filter(abs(X) <= cutoff_tilt) %>%
-            dplyr::filter(abs(Y) <= cutoff_tilt) %>%
-            reshape2::melt(id.vars = c("Station", "datetime", "survey", "device_id", "data_level", "site", "device", "device_type")) %>%
-            dplyr::arrange(device_id, datetime, survey, Station) %>%
-            dplyr::filter(variable != "TideCorr") %>%
-            dplyr::filter(variable != "DriftCorr") %>%
-            dplyr::filter(variable != "StdDev") %>%
-            dplyr::filter(variable != "X") %>%
-            dplyr::filter(variable != "Y") %>%
-            dplyr::select(Station, datetime, survey, variable, value, device_id, data_level, site, device, device_type)
-          data_in = cg6_addTide
+            dplyr::filter(abs(Y) <= cutoff_tilt)
         }
         if(add_tides == T & add_longTdrift == T){
-        cg6_addTide = data_in %>%
+        data_in_mod = data_in %>%
             reshape2::dcast(Station + datetime + survey + device_id + data_level + site + device + device_type ~ variable, value.var = "value") %>%
             dplyr::mutate(CorrGrav = CorrGrav - TideCorr - DriftCorr) %>%
             dplyr::filter(StdDev <= cutoff_sd) %>%
             dplyr::filter(abs(X) <= cutoff_tilt) %>%
-            dplyr::filter(abs(Y) <= cutoff_tilt) %>%
-            reshape2::melt(id.vars = c("Station", "datetime", "survey", "device_id", "data_level", "site", "device", "device_type")) %>%
-            dplyr::arrange(device_id, datetime, survey, Station) %>%
-            dplyr::filter(variable != "TideCorr") %>%
-            dplyr::filter(variable != "DriftCorr") %>%
-            dplyr::filter(variable != "StdDev") %>%
-            dplyr::filter(variable != "X") %>%
-            dplyr::filter(variable != "Y") %>%
-            dplyr::select(Station, datetime, survey, variable, value, device_id, data_level, site, device, device_type)
-          data_in = cg6_addTide
+            dplyr::filter(abs(Y) <= cutoff_tilt)
         }
         if(add_tides == F & add_longTdrift == F){
-          data_in = data_in %>%
+          data_in_mod = data_in %>%
             reshape2::dcast(Station + datetime + survey + device_id + data_level + site + device + device_type ~ variable, value.var = "value") %>%
             dplyr::filter(StdDev <= cutoff_sd) %>%
             dplyr::filter(abs(X) <= cutoff_tilt) %>%
-            dplyr::filter(abs(Y) <= cutoff_tilt) %>%
-            reshape2::melt(id.vars = c("Station", "datetime", "survey", "device_id", "data_level", "site", "device", "device_type")) %>%
-            dplyr::arrange(device_id, datetime, survey, Station) %>%
-            dplyr::filter(variable != "TideCorr") %>%
-            dplyr::filter(variable != "DriftCorr") %>%
-            dplyr::filter(variable != "StdDev") %>%
-            dplyr::filter(variable != "X") %>%
-            dplyr::filter(variable != "Y") %>%
-            dplyr::select(Station, datetime, survey, variable, value, device_id, data_level, site, device, device_type)
+            dplyr::filter(abs(Y) <= cutoff_tilt)
         }
     }
+    ## restructure data, no matter what was modified,
+    # to long format and
+    # get rid of unnessecary columns
+    data_in = data_in_mod %>%
+        reshape2::melt(id.vars = c("Station", "datetime", "survey", "device_id", "data_level", "site", "device", "device_type")) %>%
+        dplyr::arrange(device_id, datetime, survey, Station) %>%
+        dplyr::filter(variable != "TideCorr") %>%
+        dplyr::filter(variable != "DriftCorr") %>%
+        dplyr::filter(variable != "StdDev") %>%
+        dplyr::filter(variable != "X") %>%
+        dplyr::filter(variable != "Y") %>%
+        dplyr::select(Station, datetime, survey, variable, value, device_id, data_level, site, device, device_type)
 
+    #
     # create standard timedif
     # reason: so beginning is also set and first value is not excluded !
     # [min]
